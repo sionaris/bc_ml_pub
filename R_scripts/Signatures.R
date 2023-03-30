@@ -1,0 +1,759 @@
+# This script is used to compare our signature with other published signatures
+
+# Libraries #####
+library(dplyr)
+library(ggplot2)
+library(openxlsx)
+library(genefu)
+library(org.Hs.eg.db)
+
+# Annotation: files and function ######
+# ID_Map
+official = org.Hs.egSYMBOL
+mapped_genes_official = mappedkeys(official)
+official_df = as.data.frame(official[mapped_genes_official])
+official_df = official_df %>% dplyr::rename(EntrezGene.ID = gene_id, Gene.Symbol = symbol)
+official_df$HGNC_Official = "Yes"
+official_df = official_df[-which(duplicated(official_df$Gene.Symbol)==T),]
+
+alias = org.Hs.egALIAS2EG
+mapped_genes_alias = mappedkeys(alias)
+alias_df = as.data.frame(alias[mapped_genes_alias])
+alias_df = alias_df %>% dplyr::rename(EntrezGene.ID = gene_id, Gene.Symbol = alias_symbol)
+alias_df = alias_df[-which(alias_df$Gene.Symbol %in% official_df$Gene.Symbol),]
+alias_df$HGNC_Official = "No"
+
+ID_Map = rbind(official_df, alias_df) %>% distinct()
+ID_Map$EntrezGene.ID = as.numeric(ID_Map$EntrezGene.ID)
+ID_Map = ID_Map[order(ID_Map$EntrezGene.ID),] %>%
+  dplyr::rename(probe=Gene.Symbol) %>%
+  dplyr::select(probe, EntrezGene.ID, HGNC_Official)
+
+# Aliases
+aliases_for_join = alias_df %>% dplyr::rename(Alias = Gene.Symbol)
+Aliases = official_df %>% inner_join(aliases_for_join,
+                                     by = "EntrezGene.ID", multiple = "all") %>%
+  dplyr::select(Alias, Gene.Symbol, EntrezGene.ID) %>%
+  dplyr::rename(probe = Alias, HGNC_Symbol = Gene.Symbol,
+                Entrez = EntrezGene.ID) %>%
+  distinct()
+
+rm(alias, alias_df, aliases_for_join, official, mapped_genes_alias, mapped_genes_official)
+
+# Import our gene expression signature #####
+NRS = read.xlsx("data/Output sets/Downstream/DGEA.xlsx") %>%
+  dplyr::filter(adj.P.Val < 0.05) %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+
+# Genefu signatures #####
+
+# ClaudinLow
+# Entrez ID's are matched to official gene symbols. Unmapped Entrez ID's are discarded
+data("claudinLowData"); claudinLow = as.data.frame(list(EntrezGene.ID = claudinLowData$fnames)) %>%
+  inner_join(official_df, by = "EntrezGene.ID") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+rm(claudinLowData)
+
+# pam50
+data("pam50"); pam50 = pam50$centroids.map %>% 
+  dplyr::select(Gene.Symbol = probe.centroids, EntrezGene.ID)
+
+# scmgene is easy to generate manually
+scmgene = as.data.frame(rbind(c("ESR1", 2099), c("ERBB2", 2064), c("AURKA", 6790)))
+colnames(scmgene) = c("Gene.Symbol", "EntrezGene.ID")
+
+# scmod1
+data("scmod1.robust")
+scmod1_ESR1_module = as.data.frame(scmod1.robust$mod$ESR1) %>%
+  inner_join(official_df, by = "EntrezGene.ID") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+
+scmod1_ERBB2_module = as.data.frame(scmod1.robust$mod$ERBB2) %>%
+  inner_join(official_df, by = "EntrezGene.ID") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+
+scmod1_AURKA_module = as.data.frame(scmod1.robust$mod$AURKA) %>%
+  inner_join(official_df, by = "EntrezGene.ID") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+rm(scmod1.robust)
+
+# scmod2
+data("scmod2.robust")
+scmod2_ESR1_module = as.data.frame(scmod2.robust$mod$ESR1) %>%
+  inner_join(official_df, by = "EntrezGene.ID") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+
+scmod2_ERBB2_module = as.data.frame(scmod2.robust$mod$ERBB2) %>%
+  inner_join(official_df, by = "EntrezGene.ID") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+
+scmod2_AURKA_module = as.data.frame(scmod2.robust$mod$AURKA) %>%
+  inner_join(official_df, by = "EntrezGene.ID") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+rm(scmod2.robust)
+
+# endoPredict
+data("sig.endoPredict"); endoPredict = sig.endoPredict %>% 
+  dplyr::select(Gene.Symbol = symbol, EntrezGene.ID)
+rm(sig.endoPredict)
+
+# OncotypeDX
+data("sig.oncotypedx"); OncotypeDX = sig.oncotypedx %>% 
+  dplyr::select(Gene.Symbol = symbol, EntrezGene.ID)
+rm(sig.oncotypedx)
+
+# Mammaprint
+data("sig.gene70"); Mammaprint = sig.gene70 %>%
+  dplyr::select(Gene.Symbol = NCBI.gene.symbol, EntrezGene.ID) %>%
+  dplyr::filter(!is.na(Gene.Symbol))
+rm(sig.gene70)
+
+# GGI
+data("sig.ggi"); GGI = sig.ggi%>%
+  dplyr::select(Gene.Symbol = NCBI.gene.symbol, EntrezGene.ID) %>%
+  dplyr::filter(!is.na(Gene.Symbol))
+rm(sig.ggi)
+
+# PIK3CA
+data("sig.pik3cags"); sig.pik3cags$EntrezGene.ID = as.character(sig.pik3cags$EntrezGene.ID)
+PIK3CA = sig.pik3cags %>%
+  inner_join(official_df, by = "EntrezGene.ID") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+rm(sig.pik3cags)
+
+# METABRIC Integrative Clusters
+library(iC10)
+data("Map.Exp"); iC10 = Map.Exp %>% dplyr::rename(Gene.Symbol = Gene_symbol) %>%
+  left_join(official_df, by = "Gene.Symbol") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+rm(Map.Exp)
+
+# IHC4 (ESR1, ERBB2, PGR, MKI67)
+IHC4 = as.data.frame(rbind(c("ESR1", 2099), c("ERBB2", 2064), 
+                           c("PGR", 5241), c("MKI67", 4288)))
+colnames(IHC4) = c("Gene.Symbol", "EntrezGene.ID")
+
+# MetaGX (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6584731/)
+MetaGX = read.xlsx("Signatures/MetaGX.xlsx") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+
+# Danaher (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5319024/)
+# Supplementary Material
+Danaher = read.xlsx("Signatures/Danaher.xlsx", sheet = 4) %>%
+  dplyr::rename(Gene.Symbol = Gene) %>%
+  left_join(official_df, by = "Gene.Symbol") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+
+# MCP (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5073889/)
+# Genes retrieved from GitHub repo 
+# (https://github.com/ebecht/MCPcounter/blob/master/Signatures/genes.txt)
+MCP = read.table("Signatures/MCP.txt")
+colnames(MCP) = MCP[1,]
+MCP = MCP[-1,] %>% 
+  dplyr::select(Gene.Symbol = `HUGO symbols`, EntrezGene.ID = ENTREZID)
+
+# Immunophenoscore (https://pubmed.ncbi.nlm.nih.gov/28052254/)
+# Supplementary Material
+Immunophenoscore = read.xlsx("Signatures/Immunophenoscore.xlsx")
+colnames(Immunophenoscore) = Immunophenoscore[1,]
+Immunophenoscore = Immunophenoscore[-1,] %>%
+  dplyr::rename(Gene.Symbol = Metagene) %>%
+  left_join(official_df, by = "Gene.Symbol") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+
+# Create a signature list #####
+Signatures = list(pam50 = pam50,
+                  scmod1_AURKA = scmod1_AURKA_module,
+                  scmod1_ERBB2_module = scmod1_ERBB2_module,
+                  scmod1_ESR1_module = scmod1_ESR1_module,
+                  scmod2_AURKA = scmod2_AURKA_module,
+                  scmod2_ERBB2_module = scmod2_ERBB2_module,
+                  scmod2_ESR1_module = scmod2_ESR1_module,
+                  scmgene = scmgene,
+                  IHC4 = IHC4,
+                  claudinLow = claudinLow,
+                  endoPredict = endoPredict,
+                  OncotypeDX = OncotypeDX,
+                  Mammaprint = Mammaprint,
+                  GGI = GGI,
+                  PIK3CA = PIK3CA,
+                  iC10 = iC10,
+                  MetaGX = MetaGX,
+                  Danaher = Danaher,
+                  MCP = MCP,
+                  Immunophenoscore = Immunophenoscore)
+
+# Cleaning up
+rm(pam50, scmod1_AURKA_module, scmod1_ERBB2_module, scmod1_ESR1_module,
+   scmod2_AURKA_module, scmod2_ERBB2_module, scmod2_ESR1_module, scmgene,
+   IHC4, claudinLow, endoPredict, OncotypeDX, Mammaprint, GGI, PIK3CA, iC10,
+   MetaGX, Danaher, MCP, Immunophenoscore)
+
+# Overlaps with our signature (NRS) #####
+
+# Preparing output
+GS_overlap = as.data.frame(list(NRSGS = NRS$Gene.Symbol))
+Entrez_overlap = as.data.frame(list(NRSE = NRS$EntrezGene.ID))
+
+# Overlaps
+for (i in 1:length(Signatures)){
+  GS_overlap[,i+1] = "No"
+  Entrez_overlap[,i+1] = "No"
+  yes_ind_gs = which(NRS$Gene.Symbol %in% Signatures[[i]]$Gene.Symbol)
+  yes_ind_entrez = which(NRS$EntrezGene.ID %in% Signatures[[i]]$EntrezGene.ID)
+  GS_overlap[yes_ind_gs, i+1] = "Yes"
+  Entrez_overlap[yes_ind_entrez, i+1] = "Yes"
+  rm(yes_ind_entrez, yes_ind_gs)
+}
+
+rm(i); gc()
+colnames(GS_overlap) = colnames(Entrez_overlap) = c("NRS", names(Signatures))
+
+# Add total overlaps in the last row of both output sets
+GS_overlap[nrow(GS_overlap) + 1,] = c("Total", 
+                                     lapply(GS_overlap[,2:ncol(GS_overlap)], function(x) sum(x == "Yes")))
+Entrez_overlap[nrow(Entrez_overlap) + 1,] = c("Total", 
+                                     lapply(Entrez_overlap[,2:ncol(GS_overlap)], function(x) sum(x == "Yes")))
+
+# Venn diagrams #####
+library(ggVennDiagram)
+GS_Venn = c(list(NRS = NRS$Gene.Symbol), 
+            lapply(Signatures, function(x) {x <- x %>% dplyr::select(Gene.Symbol)
+            x <- as.character(unlist(x))}))
+Entrez_Venn = c(list(NRS = NRS$EntrezGene.ID), 
+                lapply(Signatures, function(x) {x <- x %>% dplyr::select(EntrezGene.ID)
+                x <- as.character(unlist(x))}))
+
+# Venn diagram list
+GS_Venn_diagram_list = list()
+Entrez_Venn_diagram_list = list()
+
+for(i in 2:length(GS_Venn)){
+  diagram = ggVennDiagram(
+    GS_Venn[c(1,i)], label_alpha = 0,
+    category.names = names(GS_Venn[c(1,i)]), set_size = 0.65, label_size = 1) +
+    scale_color_manual(values = c("grey10", "grey15")) +
+    scale_fill_gradient(low = "white", high = "grey30") + 
+    theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 2.5),
+          panel.background = element_rect(fill = "white", 
+                                          colour = "white"),
+          legend.key.size = unit(1.5, units = "mm"),
+          legend.text = element_text(size = 2),
+          legend.title = element_text(face = "bold", size = 3),
+          legend.margin = ggplot2::margin(0, 0, 0, 0, unit = "mm"),
+          legend.spacing.y = unit(0.5, units = "mm"),
+          legend.spacing.x = unit(0.5, units = "mm"),
+          legend.background = element_blank())+
+    labs(title = paste0("Venn diagram of NRS and the ", names(GS_Venn)[i], " signature"))
+  GS_Venn_diagram_list = c(GS_Venn_diagram_list, list(diagram)); rm(diagram)
+  
+  diagram = ggVennDiagram(
+    Entrez_Venn[c(1,i)], label_alpha = 0,
+    category.names = names(Entrez_Venn[c(1,i)]), set_size = 0.65, label_size = 1) +
+    scale_color_manual(values = c("grey10", "grey15")) +
+    scale_fill_gradient(low = "white", high = "grey30") + 
+    theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 2.5),
+          panel.background = element_rect(fill = "white", 
+                                          colour = "white"),
+          legend.key.size = unit(1.5, units = "mm"),
+          legend.text = element_text(size = 2),
+          legend.title = element_text(face = "bold", size = 3),
+          legend.margin = ggplot2::margin(0, 0, 0, 0, unit = "mm"),
+          legend.spacing.y = unit(0.5, units = "mm"),
+          legend.spacing.x = unit(0.5, units = "mm"),
+          legend.background = element_blank())+
+    labs(title = paste0("Venn diagram of NRS and the ", names(Entrez_Venn)[i], " signature"))
+  Entrez_Venn_diagram_list = c(Entrez_Venn_diagram_list, list(diagram)); rm(diagram)
+}
+rm(i); gc()
+names(Entrez_Venn_diagram_list) = names(GS_Venn_diagram_list) = names(Signatures)
+
+# Defining a multiplot function #####
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+# Multiplot of Gene Symbol Venn diagrams
+tiff("Signatures/Gene_Symbol_Venn_multiplot.tiff", 
+     width = 3840, height = 2160, res = 700, compression = "lzw")
+multiplot(GS_Venn_diagram_list[[1]], GS_Venn_diagram_list[[2]], GS_Venn_diagram_list[[3]],
+          GS_Venn_diagram_list[[4]], GS_Venn_diagram_list[[5]], GS_Venn_diagram_list[[6]],
+          GS_Venn_diagram_list[[7]], GS_Venn_diagram_list[[8]], GS_Venn_diagram_list[[9]],
+          GS_Venn_diagram_list[[10]], GS_Venn_diagram_list[[11]], GS_Venn_diagram_list[[12]],
+          GS_Venn_diagram_list[[13]], GS_Venn_diagram_list[[14]], GS_Venn_diagram_list[[15]],
+          GS_Venn_diagram_list[[16]], GS_Venn_diagram_list[[17]], GS_Venn_diagram_list[[18]],
+          GS_Venn_diagram_list[[19]], GS_Venn_diagram_list[[20]], cols = 4)
+m = ggplot(multiplot(GS_Venn_diagram_list[[1]], GS_Venn_diagram_list[[2]], GS_Venn_diagram_list[[3]],
+                     GS_Venn_diagram_list[[4]], GS_Venn_diagram_list[[5]], GS_Venn_diagram_list[[6]],
+                     GS_Venn_diagram_list[[7]], GS_Venn_diagram_list[[8]], GS_Venn_diagram_list[[9]],
+                     GS_Venn_diagram_list[[10]], GS_Venn_diagram_list[[11]], GS_Venn_diagram_list[[12]],
+                     GS_Venn_diagram_list[[13]], GS_Venn_diagram_list[[14]], GS_Venn_diagram_list[[15]],
+                     GS_Venn_diagram_list[[16]], GS_Venn_diagram_list[[17]], GS_Venn_diagram_list[[18]],
+                     GS_Venn_diagram_list[[19]], GS_Venn_diagram_list[[20]], cols = 4))
+dev.off(); rm(m)
+
+# Multiplot of Entrez ID Venn diagrams
+tiff("Signatures/Entrez_Venn_multiplot.tiff", 
+     width = 3840, height = 2160, res = 700, compression = "lzw")
+multiplot(Entrez_Venn_diagram_list[[1]], Entrez_Venn_diagram_list[[2]], Entrez_Venn_diagram_list[[3]],
+          Entrez_Venn_diagram_list[[4]], Entrez_Venn_diagram_list[[5]], Entrez_Venn_diagram_list[[6]],
+          Entrez_Venn_diagram_list[[7]], Entrez_Venn_diagram_list[[8]], Entrez_Venn_diagram_list[[9]],
+          Entrez_Venn_diagram_list[[10]], Entrez_Venn_diagram_list[[11]], Entrez_Venn_diagram_list[[12]],
+          Entrez_Venn_diagram_list[[13]], Entrez_Venn_diagram_list[[14]], Entrez_Venn_diagram_list[[15]],
+          Entrez_Venn_diagram_list[[16]], Entrez_Venn_diagram_list[[17]], Entrez_Venn_diagram_list[[18]],
+          Entrez_Venn_diagram_list[[19]], Entrez_Venn_diagram_list[[20]], cols = 4)
+m = ggplot(multiplot(Entrez_Venn_diagram_list[[1]], Entrez_Venn_diagram_list[[2]], Entrez_Venn_diagram_list[[3]],
+                     Entrez_Venn_diagram_list[[4]], Entrez_Venn_diagram_list[[5]], Entrez_Venn_diagram_list[[6]],
+                     Entrez_Venn_diagram_list[[7]], Entrez_Venn_diagram_list[[8]], Entrez_Venn_diagram_list[[9]],
+                     Entrez_Venn_diagram_list[[10]], Entrez_Venn_diagram_list[[11]], Entrez_Venn_diagram_list[[12]],
+                     Entrez_Venn_diagram_list[[13]], Entrez_Venn_diagram_list[[14]], Entrez_Venn_diagram_list[[15]],
+                     Entrez_Venn_diagram_list[[16]], Entrez_Venn_diagram_list[[17]], Entrez_Venn_diagram_list[[18]],
+                     Entrez_Venn_diagram_list[[19]], Entrez_Venn_diagram_list[[20]], cols = 4))
+dev.off(); rm(m)
+
+# Venn diagrams of the intersections of signatures and our background genes (5,672) #####
+background_genes = read.xlsx("data/Output sets/Downstream/DGEA.xlsx") %>%
+  dplyr::select(Gene.Symbol, EntrezGene.ID)
+
+GS_Venn_intersections = c(list(NRS = NRS$Gene.Symbol), 
+                          lapply(Signatures, function(x) {x <- x$Gene.Symbol
+                          x <- intersect(as.character(x), background_genes$Gene.Symbol)
+                          x <- as.character(unlist(x))}))
+Entrez_Venn_intersections = c(list(NRS = NRS$EntrezGene.ID), 
+                              lapply(Signatures, function(x) {x <- x $EntrezGene.ID
+                              x <- intersect(as.character(x), background_genes$EntrezGene.ID)
+                              x <- as.character(unlist(x))}))
+
+# Venn diagram list
+GS_Venn_intersections_diagram_list = list()
+Entrez_Venn_intersections_diagram_list = list()
+
+for(i in 2:length(GS_Venn_intersections)){
+  diagram = ggVennDiagram(
+    GS_Venn_intersections[c(1,i)], label_alpha = 0,
+    category.names = names(GS_Venn_intersections[c(1,i)]), set_size = 0.65, label_size = 1) +
+    scale_color_manual(values = c("grey10", "grey15")) +
+    scale_fill_gradient(low = "white", high = "grey30") + 
+    theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 2.5),
+          panel.background = element_rect(fill = "white", 
+                                          colour = "white"),
+          legend.key.size = unit(1.5, units = "mm"),
+          legend.text = element_text(size = 2),
+          legend.title = element_text(face = "bold", size = 3),
+          legend.margin = ggplot2::margin(0, 0, 0, 0, unit = "mm"),
+          legend.spacing.y = unit(0.5, units = "mm"),
+          legend.spacing.x = unit(0.5, units = "mm"),
+          legend.background = element_blank())+
+    labs(title = paste0("Venn diagram of NRS and the ", names(GS_Venn_intersections)[i], " signature"))
+  GS_Venn_intersections_diagram_list = c(GS_Venn_intersections_diagram_list, list(diagram)); rm(diagram)
+  
+  diagram = ggVennDiagram(
+    Entrez_Venn_intersections[c(1,i)], label_alpha = 0,
+    category.names = names(Entrez_Venn_intersections[c(1,i)]), set_size = 0.65, label_size = 1) +
+    scale_color_manual(values = c("grey10", "grey15")) +
+    scale_fill_gradient(low = "white", high = "grey30") + 
+    theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 2.5),
+          panel.background = element_rect(fill = "white", 
+                                          colour = "white"),
+          legend.key.size = unit(1.5, units = "mm"),
+          legend.text = element_text(size = 2),
+          legend.title = element_text(face = "bold", size = 3),
+          legend.margin = ggplot2::margin(0, 0, 0, 0, unit = "mm"),
+          legend.spacing.y = unit(0.5, units = "mm"),
+          legend.spacing.x = unit(0.5, units = "mm"),
+          legend.background = element_blank())+
+    labs(title = paste0("Venn diagram of NRS and the ", names(Entrez_Venn_intersections)[i], " signature"))
+  Entrez_Venn_intersections_diagram_list = c(Entrez_Venn_intersections_diagram_list, list(diagram)); rm(diagram)
+}
+rm(i); gc()
+names(Entrez_Venn_intersections_diagram_list) = names(GS_Venn_intersections_diagram_list) = names(Signatures)
+
+# Multiplot of Gene Symbol Venn diagrams
+tiff("Signatures/Gene_Symbol_Venn_intersections_multiplot.tiff", 
+     width = 3840, height = 2160, res = 700, compression = "lzw")
+multiplot(GS_Venn_intersections_diagram_list[[1]], GS_Venn_intersections_diagram_list[[2]], GS_Venn_intersections_diagram_list[[3]],
+          GS_Venn_intersections_diagram_list[[4]], GS_Venn_intersections_diagram_list[[5]], GS_Venn_intersections_diagram_list[[6]],
+          GS_Venn_intersections_diagram_list[[7]], GS_Venn_intersections_diagram_list[[8]], GS_Venn_intersections_diagram_list[[9]],
+          GS_Venn_intersections_diagram_list[[10]], GS_Venn_intersections_diagram_list[[11]], GS_Venn_intersections_diagram_list[[12]],
+          GS_Venn_intersections_diagram_list[[13]], GS_Venn_intersections_diagram_list[[14]], GS_Venn_intersections_diagram_list[[15]],
+          GS_Venn_intersections_diagram_list[[16]], GS_Venn_intersections_diagram_list[[17]], GS_Venn_intersections_diagram_list[[18]],
+          GS_Venn_intersections_diagram_list[[19]], GS_Venn_intersections_diagram_list[[20]], cols = 4)
+m = ggplot(multiplot(GS_Venn_intersections_diagram_list[[1]], GS_Venn_intersections_diagram_list[[2]], GS_Venn_intersections_diagram_list[[3]],
+                     GS_Venn_intersections_diagram_list[[4]], GS_Venn_intersections_diagram_list[[5]], GS_Venn_intersections_diagram_list[[6]],
+                     GS_Venn_intersections_diagram_list[[7]], GS_Venn_intersections_diagram_list[[8]], GS_Venn_intersections_diagram_list[[9]],
+                     GS_Venn_intersections_diagram_list[[10]], GS_Venn_intersections_diagram_list[[11]], GS_Venn_intersections_diagram_list[[12]],
+                     GS_Venn_intersections_diagram_list[[13]], GS_Venn_intersections_diagram_list[[14]], GS_Venn_intersections_diagram_list[[15]],
+                     GS_Venn_intersections_diagram_list[[16]], GS_Venn_intersections_diagram_list[[17]], GS_Venn_intersections_diagram_list[[18]],
+                     GS_Venn_intersections_diagram_list[[19]], GS_Venn_intersections_diagram_list[[20]], cols = 4))
+dev.off(); rm(m)
+
+# Multiplot of Entrez ID Venn diagrams
+tiff("Signatures/Entrez_Venn_intersections_multiplot.tiff", 
+     width = 3840, height = 2160, res = 700, compression = "lzw")
+multiplot(Entrez_Venn_intersections_diagram_list[[1]], Entrez_Venn_intersections_diagram_list[[2]], Entrez_Venn_intersections_diagram_list[[3]],
+          Entrez_Venn_intersections_diagram_list[[4]], Entrez_Venn_intersections_diagram_list[[5]], Entrez_Venn_intersections_diagram_list[[6]],
+          Entrez_Venn_intersections_diagram_list[[7]], Entrez_Venn_intersections_diagram_list[[8]], Entrez_Venn_intersections_diagram_list[[9]],
+          Entrez_Venn_intersections_diagram_list[[10]], Entrez_Venn_intersections_diagram_list[[11]], Entrez_Venn_intersections_diagram_list[[12]],
+          Entrez_Venn_intersections_diagram_list[[13]], Entrez_Venn_intersections_diagram_list[[14]], Entrez_Venn_intersections_diagram_list[[15]],
+          Entrez_Venn_intersections_diagram_list[[16]], Entrez_Venn_intersections_diagram_list[[17]], Entrez_Venn_intersections_diagram_list[[18]],
+          Entrez_Venn_intersections_diagram_list[[19]], Entrez_Venn_intersections_diagram_list[[20]], cols = 4)
+m = ggplot(multiplot(Entrez_Venn_intersections_diagram_list[[1]], Entrez_Venn_intersections_diagram_list[[2]], Entrez_Venn_intersections_diagram_list[[3]],
+                     Entrez_Venn_intersections_diagram_list[[4]], Entrez_Venn_intersections_diagram_list[[5]], Entrez_Venn_intersections_diagram_list[[6]],
+                     Entrez_Venn_intersections_diagram_list[[7]], Entrez_Venn_intersections_diagram_list[[8]], Entrez_Venn_intersections_diagram_list[[9]],
+                     Entrez_Venn_intersections_diagram_list[[10]], Entrez_Venn_intersections_diagram_list[[11]], Entrez_Venn_intersections_diagram_list[[12]],
+                     Entrez_Venn_intersections_diagram_list[[13]], Entrez_Venn_intersections_diagram_list[[14]], Entrez_Venn_intersections_diagram_list[[15]],
+                     Entrez_Venn_intersections_diagram_list[[16]], Entrez_Venn_intersections_diagram_list[[17]], Entrez_Venn_intersections_diagram_list[[18]],
+                     Entrez_Venn_intersections_diagram_list[[19]], Entrez_Venn_intersections_diagram_list[[20]], cols = 4))
+dev.off(); rm(m)
+
+# Venn diagrams of selected lists only #####
+# Full lists
+# Venn diagrams of the intersections of signatures and our background genes (5,672) #####
+GS_Venn_selected = c(list(NRS = NRS$Gene.Symbol), 
+                                   lapply(Signatures[c("pam50", "Mammaprint", 
+                                                       "iC10", "Immunophenoscore")], function(x) {x <- x$Gene.Symbol
+                                                       x <- as.character(x)}))
+Entrez_Venn_selected = c(list(NRS = NRS$EntrezGene.ID), 
+                                       lapply(Signatures[c("pam50", "Mammaprint", 
+                                                           "iC10", "Immunophenoscore")], function(x) {x <- x $EntrezGene.ID
+                                                           x <- as.character(x)}))
+
+# Venn diagram list
+GS_Venn_selected_diagram_list = list()
+Entrez_Venn_selected_diagram_list = list()
+
+for(i in 2:length(GS_Venn_selected)){
+  diagram = ggVennDiagram(
+    GS_Venn_selected[c(1,i)], label_alpha = 0,
+    category.names = names(GS_Venn_selected[c(1,i)]),
+    label = "count", set_size = 2, label_size = 3) +
+    scale_color_manual(values = c("grey10", "grey15")) +
+    scale_fill_gradient(low = "white", high = "grey30") + 
+    theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 6),
+          panel.background = element_rect(fill = "white", 
+                                          colour = "white"),
+          legend.key.size = unit(3, units = "mm"),
+          legend.text = element_text(size = 4),
+          legend.title = element_text(face = "bold", size = 6),
+          legend.margin = ggplot2::margin(0, 0, 0, 0, unit = "mm"),
+          legend.spacing.y = unit(2, units = "mm"),
+          legend.spacing.x = unit(2, units = "mm"),
+          legend.background = element_blank())+
+    labs(title = paste0("Venn diagram of NRS and the ", names(GS_Venn_selected)[i], " signature"))
+  GS_Venn_selected_diagram_list = c(GS_Venn_selected_diagram_list, list(diagram)); rm(diagram)
+  
+  diagram = ggVennDiagram(
+    Entrez_Venn_selected[c(1,i)], label_alpha = 0,
+    category.names = names(Entrez_Venn_selected[c(1,i)]),
+    label = "count", set_size = 2, label_size = 3) +
+    scale_color_manual(values = c("grey10", "grey15")) +
+    scale_fill_gradient(low = "white", high = "grey30") + 
+    theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 6),
+          panel.background = element_rect(fill = "white", 
+                                          colour = "white"),
+          legend.key.size = unit(3, units = "mm"),
+          legend.text = element_text(size = 4),
+          legend.title = element_text(face = "bold", size = 6),
+          legend.margin = ggplot2::margin(0, 0, 0, 0, unit = "mm"),
+          legend.spacing.y = unit(2, units = "mm"),
+          legend.spacing.x = unit(2, units = "mm"),
+          legend.background = element_blank())+
+    labs(title = paste0("Venn diagram of NRS and the ", names(Entrez_Venn_selected)[i], " signature"))
+  Entrez_Venn_selected_diagram_list = c(Entrez_Venn_selected_diagram_list, list(diagram)); rm(diagram)
+}
+rm(i); gc()
+names(Entrez_Venn_selected_diagram_list) = names(GS_Venn_selected_diagram_list) =
+  names(Signatures[c("pam50", "Mammaprint", 
+                     "iC10", "Immunophenoscore")])
+
+# Multiplot of Gene Symbol Venn diagrams
+tiff("Signatures/Gene_Symbol_Venn_selected_multiplot.tiff", 
+     width = 3840, height = 2160, res = 700, compression ="lzw")
+multiplot(GS_Venn_selected_diagram_list[[1]], GS_Venn_selected_diagram_list[[2]], 
+          GS_Venn_selected_diagram_list[[3]], GS_Venn_selected_diagram_list[[4]], 
+          cols = 2)
+m = ggplot(multiplot(GS_Venn_selected_diagram_list[[1]], 
+                     GS_Venn_selected_diagram_list[[2]],
+                     GS_Venn_selected_diagram_list[[3]], 
+                     GS_Venn_selected_diagram_list[[4]], cols = 2))
+dev.off(); rm(m)
+
+# Multiplot of Entrez ID Venn diagrams
+tiff("Signatures/Entrez_Venn_selected_multiplot.tiff", 
+     width = 3840, height = 2160, res = 700, compression = "lzw")
+multiplot(Entrez_Venn_selected_diagram_list[[1]], Entrez_Venn_selected_diagram_list[[2]],
+          Entrez_Venn_selected_diagram_list[[3]], 
+          Entrez_Venn_selected_diagram_list[[4]], cols = 2)
+m = ggplot(multiplot(Entrez_Venn_selected_diagram_list[[1]], Entrez_Venn_selected_diagram_list[[2]],
+                     Entrez_Venn_selected_diagram_list[[3]], 
+                     Entrez_Venn_selected_diagram_list[[4]], cols = 2))
+dev.off(); rm(m)
+
+# Intersections
+# Venn diagrams of the intersections of signatures and our background genes (5,672) #####
+GS_Venn_selected_intersections = c(list(NRS = NRS$Gene.Symbol), 
+                                   lapply(Signatures[c("pam50", "Mammaprint", 
+                                                       "iC10", "Immunophenoscore")], function(x) {x <- x$Gene.Symbol
+                                                       x <- intersect(as.character(x), background_genes$Gene.Symbol)
+                                                       x <- as.character(unlist(x))}))
+Entrez_Venn_selected_intersections = c(list(NRS = NRS$EntrezGene.ID), 
+                                       lapply(Signatures[c("pam50", "Mammaprint", 
+                                                           "iC10", "Immunophenoscore")], function(x) {x <- x $EntrezGene.ID
+                                                           x <- intersect(as.character(x), background_genes$EntrezGene.ID)
+                                                           x <- as.character(unlist(x))}))
+
+# Venn diagram list
+GS_Venn_selected_intersections_diagram_list = list()
+Entrez_Venn_selected_intersections_diagram_list = list()
+
+for(i in 2:length(GS_Venn_selected_intersections)){
+  diagram = ggVennDiagram(
+    GS_Venn_selected_intersections[c(1,i)], label_alpha = 0,
+    category.names = names(GS_Venn_selected_intersections[c(1,i)]),
+    label = "count", set_size = 2, label_size = 3) +
+    scale_color_manual(values = c("grey10", "grey15")) +
+    scale_fill_gradient(low = "white", high = "grey30") + 
+    theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 6),
+          panel.background = element_rect(fill = "white", 
+                                          colour = "white"),
+          legend.key.size = unit(3, units = "mm"),
+          legend.text = element_text(size = 4),
+          legend.title = element_text(face = "bold", size = 6),
+          legend.margin = ggplot2::margin(0, 0, 0, 0, unit = "mm"),
+          legend.spacing.y = unit(2, units = "mm"),
+          legend.spacing.x = unit(2, units = "mm"),
+          legend.background = element_blank())+
+    labs(title = paste0("Venn diagram of NRS and the ", names(GS_Venn_selected_intersections)[i], " signature"))
+  GS_Venn_selected_intersections_diagram_list = c(GS_Venn_selected_intersections_diagram_list, list(diagram)); rm(diagram)
+  
+  diagram = ggVennDiagram(
+    Entrez_Venn_selected_intersections[c(1,i)], label_alpha = 0,
+    category.names = names(Entrez_Venn_selected_intersections[c(1,i)]),
+    label = "count", set_size = 2, label_size = 3) +
+    scale_color_manual(values = c("grey10", "grey15")) +
+    scale_fill_gradient(low = "white", high = "grey30") + 
+    theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 6),
+          panel.background = element_rect(fill = "white", 
+                                          colour = "white"),
+          legend.key.size = unit(3, units = "mm"),
+          legend.text = element_text(size = 4),
+          legend.title = element_text(face = "bold", size = 6),
+          legend.margin = ggplot2::margin(0, 0, 0, 0, unit = "mm"),
+          legend.spacing.y = unit(2, units = "mm"),
+          legend.spacing.x = unit(2, units = "mm"),
+          legend.background = element_blank())+
+    labs(title = paste0("Venn diagram of NRS and the ", names(Entrez_Venn_selected_intersections)[i], " signature"))
+  Entrez_Venn_selected_intersections_diagram_list = c(Entrez_Venn_selected_intersections_diagram_list, list(diagram)); rm(diagram)
+}
+rm(i); gc()
+names(Entrez_Venn_selected_intersections_diagram_list) = names(GS_Venn_selected_intersections_diagram_list) =
+  names(Signatures[c("pam50", "Mammaprint", 
+                     "iC10", "Immunophenoscore")])
+
+# Multiplot of Gene Symbol Venn diagrams
+tiff("Signatures/Gene_Symbol_Venn_selected_intersections_multiplot.tiff", 
+     width = 3840, height = 2160, res = 700, compression = "lzw")
+multiplot(GS_Venn_selected_intersections_diagram_list[[1]], 
+          GS_Venn_selected_intersections_diagram_list[[2]], 
+          GS_Venn_selected_intersections_diagram_list[[3]], 
+          GS_Venn_selected_intersections_diagram_list[[4]], cols = 2)
+m = ggplot(multiplot(GS_Venn_selected_intersections_diagram_list[[1]], 
+                     GS_Venn_selected_intersections_diagram_list[[2]], 
+                     GS_Venn_selected_intersections_diagram_list[[3]], 
+                     GS_Venn_selected_intersections_diagram_list[[4]], cols = 2))
+dev.off(); rm(m)
+
+# Multiplot of Entrez ID Venn diagrams
+tiff("Signatures/Entrez_Venn_selected_intersections_multiplot.tiff", 
+     width = 3840, height = 2160, res = 700, compression = "lzw")
+multiplot(Entrez_Venn_selected_intersections_diagram_list[[1]], 
+          Entrez_Venn_selected_intersections_diagram_list[[2]], 
+          Entrez_Venn_selected_intersections_diagram_list[[3]],
+          Entrez_Venn_selected_intersections_diagram_list[[4]], cols = 2)
+m = ggplot(multiplot(Entrez_Venn_selected_intersections_diagram_list[[1]],
+                     Entrez_Venn_selected_intersections_diagram_list[[2]],
+                     Entrez_Venn_selected_intersections_diagram_list[[3]],
+                     Entrez_Venn_selected_intersections_diagram_list[[4]],  cols = 2))
+dev.off(); rm(m)
+
+
+# Immunophenoscore heatmap #####
+# Import RDS objects
+annotation_for_heatmap = readRDS("Signatures/annotation_for_heatmap.rds")
+z_exprs = readRDS("Signatures/normalised_expression.rds")
+
+# Samples ordered by response, genes ordered by deregulation direction
+library(pheatmap)
+save_pheatmap_tiff = function(x, filename, width = 174, height = 120.8333, res = 650,
+                              units = "mm") {
+  tiff(filename, width = width, height = height, res = res, units = units, 
+       compression = "lzw")
+  grid::grid.newpage()
+  grid::grid.draw(x$gtable)
+  dev.off()
+}
+
+# Samples ordered by response: Non-responders first
+response_ordered = rownames(annotation_for_heatmap[order(annotation_for_heatmap$Response, 
+                                                decreasing = TRUE),])
+
+# Genes ordered by Immunophenoscore group
+Immunophenoscore = read.xlsx("Signatures/Immunophenoscore.xlsx")[-1,]
+colnames(Immunophenoscore) = c("Gene.Symbol", "Category", "Immunity")
+Immunophenoscore = Immunophenoscore[Immunophenoscore$Gene.Symbol %in% NRS$Gene.Symbol,] %>%
+  dplyr::arrange(Category)
+Immunophenoscore$Category = gsub("Effector memeory CD4 T cell", 
+                                 "Effector memory CD4 T cell",
+                                 Immunophenoscore$Category)
+
+mock = NRS; rownames(mock) = mock$Gene.Symbol
+genes_ordered = mock[Immunophenoscore$Gene.Symbol, ]
+rm(mock)
+
+plot_matrix = z_exprs[which(rownames(z_exprs) %in% genes_ordered$EntrezGene.ID), 
+                      response_ordered]
+rownames(plot_matrix) = Immunophenoscore$Gene.Symbol
+plot_matrix = plot_matrix[genes_ordered$Gene.Symbol,]
+plot_matrix = t(plot_matrix)
+
+hmcol = rev(colorRampPalette(RColorBrewer::brewer.pal(9, "RdBu"))(255))
+immune_categories = unlist(RColorBrewer::brewer.pal(10, "Paired"))
+names(immune_categories) = unique(Immunophenoscore$Category)
+
+annotation_for_heatmap = annotation_for_heatmap %>%
+  dplyr::select(-scmod1, -IC10, -Mammaprint_risk, -rorS_risk, -Dataset)
+ann_colors <- list(
+  Response = c(Responder = "dodgerblue4", Non_responder = "deeppink4"),
+  Timepoint = c(T1 = "goldenrod2", T2 = "purple4"),#, T2.5 = "green", T3 = "blue"),
+  Treatment = c(Chemotherapy = "paleturquoise3", Endocrine_treatment = "sienna2"),
+  pam50 = c(Basal = "red4", LumB = "skyblue",
+            LumA = "darkblue", Her2 = "purple4", Normal = "lightgreen"),
+  Cluster = c(`Cluster 1` = "orange", `Cluster 2` = "skyblue"),
+  Category = immune_categories,
+  Immunity = c(Innate = "cadetblue", Adaptive = "darkmagenta")
+)
+
+annotation_for_heatmap = annotation_for_heatmap %>%
+  dplyr::select(Response, Cluster, Treatment, Timepoint, pam50)
+rownames(Immunophenoscore) = Immunophenoscore$Gene.Symbol
+Immunophenoscore = Immunophenoscore %>% dplyr::select(-Gene.Symbol)
+heatmap = pheatmap(plot_matrix, col = (hmcol),
+                   breaks = seq(-2, 2, 4/256),
+                   annotation_col = Immunophenoscore,
+                   annotation_row = annotation_for_heatmap,
+                   annotation_colors = ann_colors,
+                   cluster_cols = F,
+                   cluster_rows = F,
+                   gaps_row = 444,
+                   treeheight_col =  0,
+                   legend = TRUE,
+                   show_rownames = F,
+                   show_colnames = T,
+                   fontsize = 5,
+                   fontsize_col = 5,
+                   legend_breaks = c(-2, # min(plot_matrix, na.rm = TRUE), 
+                                     2), # max(plot_matrix, na.rm = TRUE)), 
+                   legend_labels = (c("lower expression", "higher expression")),
+                   main = "Immunophenoscore overlap with the NRS")
+save_pheatmap_tiff(heatmap, "Signatures/Immunophenoscore_heatmap.tiff")
+
+# Write out overlaps #####
+write.xlsx(GS_overlap, "Signatures/Gene_Symbol_Signature_Overlaps.xlsx")
+write.xlsx(Entrez_overlap, "Signatures/Entrez_Signature_Overlaps.xlsx")
+
+# MSigDB Oncogenic Collection Enrichment #####
+library(msigdb)
+library(ExperimentHub)
+library(GSEABase)
+
+# Query the database
+eh = ExperimentHub()
+query(eh , 'msigdb')
+
+# Custom download
+msigdb.hs = getMsigdb(org = 'hs', id = 'EZID', version = '7.2')
+msigdb.hs
+
+# Oncogenic signatures
+onco = subsetCollection(msigdb.hs, 'c6')
+onco_ids = geneIds(onco)
+
+# Prepare for limma::fry or limma::camera
+camera_indices = ids2indices(onco_ids, rownames(z_exprs))
+z_design = readRDS("Signatures/design_matrix.rds") # design matrix
+z_cm = readRDS("Signatures/contrast_matrix.rds") # contrast matrix
+
+onco_enr = limma::camera(z_exprs, index = camera_indices, 
+                  design = z_design, contrast = z_cm)
+enriched_oncosets = onco_enr[onco_enr$FDR < 0.05,] # 5 sets
+
+# Enriched oncogenic sets metadata: descriptions
+onco_descriptions_long = list()
+onco_descriptions_short = list()
+for(i in rownames(onco_enr)){
+  onco_descriptions_long[[i]] = msigdb.hs[[i]]@longDescription
+  onco_descriptions_short[[i]] = msigdb.hs[[i]]@shortDescription
+}
+rm(i); gc()
+
+onco_enr$Terms = rownames(onco_enr)
+onco_enr$Long.Desc = onco_descriptions_long
+onco_enr$Short.Desc = onco_descriptions_short
+
+onco_descriptions_short[[1]]; onco_descriptions_long[[1]]
+onco_descriptions_short[[2]]; onco_descriptions_long[[2]]
+onco_descriptions_short[[3]]; onco_descriptions_long[[3]]
+onco_descriptions_short[[4]]; onco_descriptions_long[[4]]
+onco_descriptions_short[[5]]; onco_descriptions_long[[5]]
+
+onco_enr = onco_enr %>%
+  dplyr::select(Terms, NGenes, Direction, PValue, FDR, Short.Desc, Long.Desc)
+
+# Write out enrichment results
+write.xlsx(onco_enr, "Signatures/MSigDB_Oncogenic_Collection_Enrichment.xlsx",
+           overwrite = TRUE)
+
+# Session Info #####
+sessionInfo()

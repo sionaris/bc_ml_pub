@@ -1,0 +1,63 @@
+R version 4.1.1 (2021-08-10)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+Running under: Windows 10 x64 (build 19043)
+
+Matrix products: default
+
+locale:
+[1] LC_COLLATE=English_United Kingdom.1252  LC_CTYPE=English_United Kingdom.1252   
+[3] LC_MONETARY=English_United Kingdom.1252 LC_NUMERIC=C                           
+[5] LC_TIME=English_United Kingdom.1252    
+
+attached base packages:
+[1] parallel  stats4    stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] plot3Drgl_1.0.2        plot3D_1.4             rgl_0.108.3            pheatmap_1.0.12       
+ [5] reshape2_1.4.4         readr_2.1.2            rJava_1.0-6            knitr_1.37            
+ [9] EnhancedVolcano_1.10.0 ggrepel_0.9.1          ggplot2_3.3.5          preprocessCore_1.54.0 
+[13] tidyr_1.2.0            stringr_1.4.0          genefu_2.24.2          AIMS_1.24.0           
+[17] e1071_1.7-9            iC10_1.5               iC10TrainingData_1.3.1 impute_1.66.0         
+[21] pamr_1.56.1            cluster_2.1.2          biomaRt_2.48.3         survcomp_1.42.0       
+[25] prodlim_2019.11.13     survival_3.2-13        GO.db_3.13.0           openxlsx_4.2.5        
+[29] sva_3.40.0             BiocParallel_1.26.2    genefilter_1.74.1      mgcv_1.8-38           
+[33] nlme_3.1-155           dplyr_1.0.8            org.Hs.eg.db_3.13.0    AnnotationDbi_1.54.1  
+[37] IRanges_2.26.0         S4Vectors_0.30.2       Biobase_2.52.0         BiocGenerics_0.38.0   
+[41] limma_3.48.3          
+
+loaded via a namespace (and not attached):
+  [1] utf8_1.2.2             tidyselect_1.1.1       htmlwidgets_1.5.4      RSQLite_2.2.8         
+  [5] grid_4.1.1             scatterpie_0.1.7       munsell_0.5.0          codetools_0.2-18      
+  [9] future_1.23.0          misc3d_0.9-1           withr_2.4.3            colorspace_2.0-2      
+ [13] GOSemSim_2.18.1        filelock_1.0.2         ggalt_0.4.0            rstudioapi_0.13       
+ [17] DOSE_3.18.3            Rttf2pt1_1.3.10        listenv_0.8.0          labeling_0.4.2        
+ [21] GenomeInfoDbData_1.2.6 polyclip_1.10-0        bit64_4.0.5            farver_2.1.0          
+ [25] parallelly_1.30.0      vctrs_0.3.8            treeio_1.16.2          generics_0.1.2        
+ [29] xfun_0.29              BiocFileCache_2.0.0    R6_2.5.1               GenomeInfoDb_1.28.4   
+ [33] ggbeeswarm_0.6.0       graphlayouts_0.8.0     locfit_1.5-9.4         bitops_1.0-7          
+ [37] cachem_1.0.6           fgsea_1.18.0           gridGraphics_0.5-1     assertthat_0.2.1      
+ [41] scales_1.1.1           ggraph_2.0.5           enrichplot_1.12.3      beeswarm_0.4.0        
+ [45] gtable_0.3.0           ash_1.0-15             globals_0.14.0         tidygraph_1.2.0       
+ [49] rlang_1.0.1            splines_4.1.1          extrafontdb_1.0        lazyeval_0.2.2        
+ [53] qvalue_2.24.0          extrafont_0.17         tcltk_4.1.1            tools_4.1.1           
+ [57] lava_1.6.10            ggplotify_0.1.0        ellipsis_0.3.2         RColorBrewer_1.1-2    
+ [61] proxy_0.4-26           Rcpp_1.0.8             plyr_1.8.6             progress_1.2.2        
+ [65] zlibbioc_1.38.0        purrr_0.3.4            RCurl_1.98-1.5         prettyunits_1.1.1     
+ [69] viridis_0.6.2          cowplot_1.1.1          magrittr_2.0.2         data.table_1.14.2     
+ [73] DO.db_2.9              matrixStats_0.61.0     evaluate_0.14          hms_1.1.1             
+ [77] patchwork_1.1.1        xtable_1.8-4           XML_3.99-0.8           mclust_5.4.9          
+ [81] gridExtra_2.3          compiler_4.1.1         tibble_3.1.6           maps_3.4.0            
+ [85] KernSmooth_2.23-20     crayon_1.5.0           shadowtext_0.1.1       htmltools_0.5.2       
+ [89] ggfun_0.0.5            tzdb_0.2.0             aplot_0.1.2            DBI_1.1.2             
+ [93] SuppDists_1.1-9.7      tweenr_1.0.2           dbplyr_2.1.1           proj4_1.0-11          
+ [97] MASS_7.3-54            rappdirs_0.3.3         Matrix_1.3-4           rmeta_3.0             
+[101] cli_3.1.0              igraph_1.2.11          pkgconfig_2.0.3        xml2_1.3.3            
+[105] ggtree_3.0.4           annotate_1.70.0        vipor_0.4.5            XVector_0.32.0        
+[109] yulab.utils_0.0.4      digest_0.6.29          Biostrings_2.60.2      fastmatch_1.1-3       
+[113] tidytree_0.3.7         edgeR_3.34.1           curl_4.3.2             lifecycle_1.0.1       
+[117] jsonlite_1.7.3         survivalROC_1.0.3      viridisLite_0.4.0      fansi_0.5.0           
+[121] pillar_1.7.0           lattice_0.20-45        ggrastr_1.0.1          KEGGREST_1.32.0       
+[125] fastmap_1.1.0          httr_1.4.2             glue_1.6.1             zip_2.2.0             
+[129] png_0.1-7              bit_4.0.4              ggforce_0.3.3          class_7.3-20          
+[133] stringi_1.7.6          bootstrap_2019.6       blob_1.2.2             memoise_2.0.1         
+[137] future.apply_1.8.1     ape_5.6-1
