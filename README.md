@@ -9,7 +9,7 @@ This repository contains all the scripts required to reproduce our analysis, alo
 - `Exploratory_barcharts.R` contains the code for producing exploratory plots from our data.
 
 Two additional scripts are included: 
-- `Genefu_functions.R` and `Plotting_functions.R`, which define the functions required for our `genefu` annotation pipeline and some additional wrapper functions to facilitate plotting (not all of them are used).
+- `Genefu_functions.R` defines the functions required for our `genefu` annotation pipeline.
 
 The session info files in the `R_Scripts` folder report the versions of the packages that were used when the final results were produced.
 
