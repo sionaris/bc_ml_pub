@@ -1,4 +1,4 @@
-# The repository for our work on breast cancer neoadjuvant treatment.
+# The repository for our work on breast cancer neoadjuvant treatment (preprint).
 
 This repository contains all the scripts required to reproduce our analysis, along with all necessary local files. It also contains the output files that are produced (plots, spreadsheets etc.).
 
