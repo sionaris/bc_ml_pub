@@ -215,6 +215,79 @@ GS_overlap[nrow(GS_overlap) + 1,] = c("Total",
 Entrez_overlap[nrow(Entrez_overlap) + 1,] = c("Total", 
                                      lapply(Entrez_overlap[,2:ncol(GS_overlap)], function(x) sum(x == "Yes")))
 
+# Heatmap of NRS vs signatures
+# Load required libraries
+library(ComplexHeatmap)
+library(circlize)
+library(rcartocolor)
+
+# Convert your dataset's relevant columns to a matrix
+overlap_mat <- GS_overlap[1:166,2:ncol(GS_overlap)]
+
+# Convert 'Yes' and 'No' to numeric values
+overlap_mat[overlap_mat == 'Yes'] <- 1
+overlap_mat[overlap_mat == 'No'] <- 0
+overlap_mat[, colnames(overlap_mat)] = lapply(overlap_mat[, colnames(overlap_mat)], as.numeric)
+overlap_mat = as.matrix(overlap_mat)
+
+# Convert the matrix back to numeric
+overlap_mat <- apply(overlap_mat, 2, as.numeric)
+rownames(overlap_mat) <- GS_overlap$NRS[1:166]
+overlap_mat <- t(overlap_mat)  # Transpose matrix before setting row names
+
+# Generate the categories for each row according to your dataset
+categories_vector <- c(rep("Breast cancer", 16), "Multi-cancer", rep("Immune system", 3))
+
+# Transform the categories vector into a factor
+categories_factor <- factor(categories_vector, levels = c("Breast cancer", "Multi-cancer", "Immune system"))
+
+# Generate annotation dataframe
+annotation_df_overlap <- data.frame(Annotations = categories_factor)
+rownames(annotation_df_overlap) <- rownames(overlap_mat)  # Adjust row names of the annotation to match the matrix
+
+# Generate annotation colors for heatmap
+annotation_colors_overlap <- list(Annotations = c("Breast cancer" = rcartocolor::carto_pal(n = 7, name = "Burg")[6], 
+                                                  "Multi-cancer" = rcartocolor::carto_pal(n = 7, name = "Teal")[7], 
+                                                  "Immune system" = rcartocolor::carto_pal(n = 7, name = "Peach")[6]))
+
+# Configure the color scheme and annotation
+col_fun <- colorRamp2(c(0, 1), c("grey95", "dodgerblue4"))
+
+# Heatmap annotation
+ha = rowAnnotation(df = annotation_df_overlap, 
+                   col = annotation_colors_overlap, 
+                   show_annotation_name = FALSE)
+
+# Generate the heatmap
+heatmap <- Heatmap(overlap_mat,
+                   name = "Overlaps",
+                   show_row_names = TRUE,
+                   show_column_names = TRUE,
+                   cluster_rows = FALSE,
+                   cluster_columns = FALSE,
+                   row_title = "Signatures",
+                   row_title_gp = gpar(fontface = "bold", fontsize = 15),
+                   column_title = "NRS genes",
+                   column_title_gp = gpar(fontface = "bold", fontsize = 15),
+                   column_title_side = "bottom",
+                   heatmap_legend_param = list(legend_direction = "horizontal",
+                                               legend_width = unit(4, "cm"),
+                                               color_bar = "discrete",
+                                               at = c(0, 1),
+                                               labels = c("Not overlapping", "Overlapping")),
+                   col = col_fun,
+                   border = "black",
+                   row_names_side = "left",
+                   row_names_gp = gpar(fontsize = 8),
+                   column_names_gp = gpar(fontsize = 4),
+                   left_annotation = ha)
+png("Signatures/NRS_published_signatures_heatmap.png", res = 600, height = 3300, width = 6750)
+plot.new()
+heatmap
+# Draw the heatmap
+# draw(heatmap, heatmap_legend_side = "bottom")
+dev.off()
+
 # Venn diagrams #####
 library(ggVennDiagram)
 GS_Venn = c(list(NRS = NRS$Gene.Symbol), 
@@ -620,11 +693,6 @@ dev.off(); rm(m)
 
 
 # Immunophenoscore heatmap #####
-# Import RDS objects
-annotation_for_heatmap = readRDS("Signatures/annotation_for_heatmap.rds")
-z_exprs = readRDS("Signatures/normalised_expression.rds")
-
-# Samples ordered by response, genes ordered by deregulation direction
 library(pheatmap)
 save_pheatmap_tiff = function(x, filename, width = 174, height = 120.8333, res = 650,
                               units = "mm") {
@@ -634,6 +702,10 @@ save_pheatmap_tiff = function(x, filename, width = 174, height = 120.8333, res =
   grid::grid.draw(x$gtable)
   dev.off()
 }
+
+# Import RDS objects
+annotation_for_heatmap = readRDS("Signatures/annotation_for_heatmap.rds")
+z_exprs = readRDS("Signatures/normalised_expression.rds")
 
 # Samples ordered by response: Non-responders first
 response_ordered = rownames(annotation_for_heatmap[order(annotation_for_heatmap$Response, 
