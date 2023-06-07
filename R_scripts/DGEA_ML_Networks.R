@@ -363,7 +363,7 @@ COSMIC_annot = COSMIC %>%
 COSMIC_annot$Ratio = as.numeric(COSMIC_annot$Ratio)
 # Which of our genes are found to be mutated in more than 1% of COSMIC samples?
 mut_Entrez = intersect(COSMIC_annot$EntrezGene.ID, 
-          KBZ_DE_mapped$EntrezGene.ID[KBZ_DE_mapped$adj.P.Val < 0.05]) # 5 Entrez ID's
+          KBZ_DE_mapped$EntrezGene.ID[KBZ_DE_mapped$adj.P.Val < 0.05]) # 89 Entrez ID's
 mut_HGNC = intersect(COSMIC_annot$Gene.Symbol, 
                      KBZ_DE_mapped$Gene.Symbol[KBZ_DE_mapped$adj.P.Val < 0.05])
 mut_HGNC
