@@ -691,7 +691,6 @@ m = ggplot(multiplot(Entrez_Venn_selected_intersections_diagram_list[[1]],
                      Entrez_Venn_selected_intersections_diagram_list[[4]],  cols = 2))
 dev.off(); rm(m)
 
-
 # Immunophenoscore heatmap #####
 library(pheatmap)
 save_pheatmap_tiff = function(x, filename, width = 174, height = 120.8333, res = 650,
@@ -709,7 +708,7 @@ z_exprs = readRDS("Signatures/normalised_expression.rds")
 
 # Samples ordered by response: Non-responders first
 response_ordered = rownames(annotation_for_heatmap[order(annotation_for_heatmap$Response, 
-                                                decreasing = TRUE),])
+                                                         decreasing = TRUE),])
 
 # Genes ordered by Immunophenoscore group
 Immunophenoscore = read.xlsx("Signatures/Immunophenoscore.xlsx")[-1,]
@@ -774,6 +773,178 @@ save_pheatmap_tiff(heatmap, "Signatures/Immunophenoscore_heatmap.tiff")
 # Write out overlaps #####
 write.xlsx(GS_overlap, "Signatures/Gene_Symbol_Signature_Overlaps.xlsx")
 write.xlsx(Entrez_overlap, "Signatures/Entrez_Signature_Overlaps.xlsx")
+
+# MCPcounter #####
+library(MCPcounter)
+library(openxlsx)
+library(tidyverse)
+library(broom)
+
+trainval = read.xlsx("data/Output sets/Pheno.xlsx", sheet = 2)
+responders_T1 = trainval$Sample.ID[trainval$Response == "Responder" &
+                                     trainval$Timepoint_coded == "T1"]
+responders_T2 = trainval$Sample.ID[trainval$Response == "Responder" &
+                                     trainval$Timepoint_coded == "T2"]
+non_responders_T1 = trainval$Sample.ID[trainval$Response == "Non_responder" &
+                                         trainval$Timepoint_coded == "T1"]
+non_responders_T2 = trainval$Sample.ID[trainval$Response == "Non_responder" &
+                                         trainval$Timepoint_coded == "T2"]
+
+MCP = list()
+MCP[["Full"]] = as.data.frame(MCPcounter.estimate(z_exprs, featuresType = "ENTREZ_ID"))
+# Found no markers for population(s): CD8 T cells, NK cells
+MCP[["Responders"]] = MCP[["Full"]][, colnames(MCP[["Full"]]) %in% c(responders_T1, responders_T2)]
+MCP[["Non_responders"]] = MCP[["Full"]][, colnames(MCP[["Full"]]) %in% c(non_responders_T1, non_responders_T2)]
+MCP[["Responders_T1"]] = MCP[["Full"]][, colnames(MCP[["Full"]]) %in% responders_T1]
+MCP[["Non_responders_T1"]] = MCP[["Full"]][, colnames(MCP[["Full"]]) %in% non_responders_T1]
+MCP[["Responders_T2"]] = MCP[["Full"]][, colnames(MCP[["Full"]]) %in% responders_T2]
+MCP[["Non_responders_T2"]] = MCP[["Full"]][, colnames(MCP[["Full"]]) %in% non_responders_T2]
+
+# Calculate mean scores for each cell type in each dataset
+MCP <- lapply(MCP, function(df) {
+  df$mean_row <- rowMeans(df, na.rm = TRUE)
+  return(df)
+})
+
+# Boxplots
+# Converting the MCP dataframe into a long format
+MCP_long <- lapply(MCP, function(df) {
+  df$cell_type <- rownames(df)
+  df_long <- df %>%
+    tidyr::pivot_longer(-cell_type, names_to = "sample_id", values_to = "value")
+  return(df_long)
+})
+
+# Assign response and timepoint groups
+for (i in 1:length(MCP_long)) {
+  MCP_long[[i]]$Response <- factor(ifelse(MCP_long[[i]]$sample_id %in% c(responders_T1, responders_T2),
+                                                "Responder", "Non_responder"))
+  MCP_long[[i]]$Timepoint <- factor(ifelse(MCP_long[[i]]$sample_id %in% c(responders_T1, non_responders_T1),
+                                                 "T1", "T2"))
+}
+
+# Titles for the boxplots
+titles = c("Responders vs. Non-responders",
+            "Responders_T1 vs. Non_responders_T1",
+            "Responders_T2 vs. Non_responders_T2",
+            "Responders_T1 vs. Responders_T2",
+            "Non_responders_T1 vs. Non_responders_T2")
+
+# Create boxplots in a loop
+boxplots = list(RespvsNonresp = list(), RespT1vsNonrespT1 = list(),
+                RespT2vsNonrespT2 = list(), RespT1vsRespT2 = list(),
+                NonrespT1vsNonrespT2 = list())
+box_datasets = list(MCP_long[["Full"]], 
+                    rbind(MCP_long[["Responders_T1"]], MCP_long[["Non_responders_T1"]]),
+                    rbind(MCP_long[["Responders_T2"]], MCP_long[["Non_responders_T2"]]),
+                    rbind(MCP_long[["Responders_T1"]], MCP_long[["Responders_T2"]]),
+                    rbind(MCP_long[["Non_responders_T1"]], MCP_long[["Non_responders_T2"]]))
+x_variables = c("Response", "Response","Response", "Timepoint", "Timepoint")
+cell_types = sort(unique(MCP_long[["Full"]]$cell_type))
+
+# Function to conduct t-tests between timepoints for each group and each cell type
+perform_t_tests_timepoints <- function(data, filter) {
+  result = data[filter, ] %>%
+    dplyr::group_by(cell_type) %>%
+    dplyr::do(tidy(t.test(value ~ Timepoint, data = .)))
+  return(result)
+}
+
+perform_t_tests_response <- function(data, filter) {
+  result = data[filter, ] %>%
+    dplyr::group_by(cell_type) %>%
+    dplyr::do(tidy(t.test(value ~ Response, data = .)))
+  return(result)
+}
+
+# Create significance labels (*) for the plots
+add_significance_labels <- function(t_test_result) {
+  t_test_result %>%
+    mutate(significance_label = case_when(
+      p.value > 0.05 ~ "n.s.",
+      p.value <= 0.05 & p.value > 0.01 ~ "*",
+      p.value <= 0.01 & p.value > 0.001 ~ "**",
+      p.value <= 0.001 & p.value > 0.0001 ~ "***",
+      p.value <= 0.0001 ~ "****"
+    )) %>%
+    dplyr::arrange(cell_type)
+}
+
+# Generate t-test results
+t_test_results = list()
+
+t_test_results[["Resp.vs.Nonresp"]] = perform_t_tests_response(MCP_long[["Full"]], 
+                                                               1:nrow(MCP_long[["Full"]]))
+t_test_results[["Resp.vs.Nonresp"]] = add_significance_labels(as.data.frame(t_test_results[["Resp.vs.Nonresp"]]))
+
+t_test_results[["RespT1.vs.Nonresp_T1"]] = perform_t_tests_response(MCP_long[["Full"]], 
+                                                                    which(MCP_long[["Full"]]$Timepoint == "T1"))
+t_test_results[["RespT1.vs.Nonresp_T1"]] = add_significance_labels(as.data.frame(t_test_results[["RespT1.vs.Nonresp_T1"]]))
+
+t_test_results[["RespT2.vs.Nonresp_T2"]] = perform_t_tests_response(MCP_long[["Full"]], 
+                                                                    which(MCP_long[["Full"]]$Timepoint == "T2"))
+t_test_results[["RespT2.vs.Nonresp_T2"]] = add_significance_labels(as.data.frame(t_test_results[["RespT2.vs.Nonresp_T2"]]))
+
+t_test_results[["RespT1.vs.RespT2"]] = perform_t_tests_timepoints(MCP_long[["Responders"]], 
+                                                                  1:nrow(MCP_long[["Responders"]]))
+t_test_results[["RespT1.vs.RespT2"]] = add_significance_labels(as.data.frame(t_test_results[["RespT1.vs.RespT2"]]))
+
+t_test_results[["NonrespT1.vs.NonrespT2"]] = perform_t_tests_timepoints(MCP_long[["Non_responders"]], 
+                                                                        1:nrow(MCP_long[["Non_responders"]]))
+t_test_results[["NonrespT1.vs.NonrespT2"]] = add_significance_labels(as.data.frame(t_test_results[["NonrespT1.vs.NonrespT2"]]))
+
+
+combined_results = rbind(t_test_results[[1]],
+                         t_test_results[[2]],
+                         t_test_results[[3]],
+                         t_test_results[[4]],
+                         t_test_results[[5]])
+
+for (i in 1:length(titles)) {
+  for (j in 1:nrow(MCP[["Full"]])) {
+    box_dataset = box_datasets[[i]] %>% dplyr::filter(cell_type == cell_types[j])
+    sig_label = t_test_results[[i]][["significance_label"]][t_test_results[[i]]$cell_type == cell_types[j]]
+    box_dataset$sig_label = ifelse(nrow(box_dataset) > 0, sig_label, NA)
+    boxplots[[i]][[j]] = ggplot(data = box_dataset, 
+                                aes(x = !!sym(x_variables[i]), y = value, 
+                                    fill = !!sym(x_variables[i]))) +
+      geom_boxplot(alpha = 0.8, outlier.shape = NA, width = 0.5) +
+      geom_text(aes(x = 1.5, y = max(value, na.rm = TRUE), 
+                    label = paste(as.character(sig_label))), 
+                size = 4, vjust = 1) +
+      scale_fill_manual(values = c("Responder" = "dodgerblue4", "Non_responder" = "deeppink4",
+                                   "T1" = "goldenrod2", "T2" = "purple4")) +
+      labs(title = NULL, #paste0(cell_types[j], ": ", titles[i])
+           x = NULL, y = cell_types[j]) +
+      theme_classic() +
+      theme(panel.background = element_rect(fill = "white", 
+                                            colour = "white"),
+            panel.grid = element_blank(),
+            plot.title = element_text(face = "bold", size = 8),
+            axis.line = element_line(),
+            axis.title = element_text(size = 9, face = "bold"),
+            legend.position = "none")
+  }
+  names(boxplots[[i]]) = cell_types
+}
+rm(box_dataset)
+
+# Create and export ggarrange() objects
+library(ggpubr)
+
+# Create output directory
+dir.create("Signatures/MCPcounter")
+MCPcounter_full_plots = list()
+for (i in 1:length(titles)) {
+  MCPcounter_full_plots[[i]] = ggarrange(plotlist = boxplots[[i]], ncol = 2, 
+                                         nrow = 4, labels = NULL)
+  print(MCPcounter_full_plots[[i]])
+  ggsave(filename = paste0("MCPcounter_", titles[i], ".tiff"),
+         path = "Signatures/MCPcounter", 
+         width = 4612, height = 6500, device = 'tiff', units = "px",
+         dpi = 700, compression = "lzw")
+  dev.off()
+}
 
 # MSigDB Oncogenic Collection Enrichment #####
 library(msigdb)
