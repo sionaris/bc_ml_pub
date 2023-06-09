@@ -908,10 +908,10 @@ for (i in 1:length(titles)) {
     boxplots[[i]][[j]] = ggplot(data = box_dataset, 
                                 aes(x = !!sym(x_variables[i]), y = value, 
                                     fill = !!sym(x_variables[i]))) +
-      geom_boxplot(alpha = 0.8, outlier.shape = NA, width = 0.5) +
+      geom_boxplot(alpha = 0.8, outlier.shape = NA, width = 0.3) +
       geom_text(aes(x = 1.5, y = max(value, na.rm = TRUE), 
                     label = paste(as.character(sig_label))), 
-                size = 4, vjust = 1) +
+                size = 3, vjust = 1) +
       scale_fill_manual(values = c("Responder" = "dodgerblue4", "Non_responder" = "deeppink4",
                                    "T1" = "goldenrod2", "T2" = "purple4")) +
       labs(title = NULL, #paste0(cell_types[j], ": ", titles[i])
@@ -920,9 +920,9 @@ for (i in 1:length(titles)) {
       theme(panel.background = element_rect(fill = "white", 
                                             colour = "white"),
             panel.grid = element_blank(),
-            plot.title = element_text(face = "bold", size = 8),
             axis.line = element_line(),
-            axis.title = element_text(size = 9, face = "bold"),
+            axis.title.y = element_text(size = 7, face = "bold"),
+            axis.text.x = element_text(size = 5),
             legend.position = "none")
   }
   names(boxplots[[i]]) = cell_types
@@ -941,10 +941,47 @@ for (i in 1:length(titles)) {
   print(MCPcounter_full_plots[[i]])
   ggsave(filename = paste0("MCPcounter_", titles[i], ".tiff"),
          path = "Signatures/MCPcounter", 
-         width = 4612, height = 6500, device = 'tiff', units = "px",
+         width = 3612, height = 6500, device = 'tiff', units = "px",
          dpi = 700, compression = "lzw")
   dev.off()
 }
+
+# Create a comprehensive plot of singificant and meaningful results
+# i.e. results that are different between the groups of response/timepoint
+# It is going to be a 3x1 grid of three 1x3 ggarrange() object (a 3x3 grid ultimately)
+
+# A legend plot
+p9 = ggplot() +
+  geom_rect(aes(xmin = -1, xmax = 1, ymin = -1, ymax = 1), fill = NA) +
+  annotate("richtext", x = -0.5, y = 0, 
+           label = "<b>a, b, c:</b> All samples<br><br>
+                    <b>d, e, f:</b> T2 samples<br><br>
+                    <b>g:</b> Responders (T1 vs. T2)<br><br>
+                    <b>h:</b> Non-responders (T1 vs. T2)",
+           hjust = 0, vjust = 0.5, fill = NA, label.color = NA, label.size = 0, size = 2) +
+  theme_void() +
+  coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1))
+
+ggarrange1 = ggarrange(boxplots$RespvsNonresp$`Endothelial cells`,
+                       boxplots$RespvsNonresp$Fibroblasts,
+                       boxplots$RespvsNonresp$Neutrophils,
+                       ncol = 3, nrow = 1, labels = c("a", "b", "c"),
+                       font.label = list(size = 8.5))
+ggarrange2 = ggarrange(boxplots$RespT2vsNonrespT2$`Endothelial cells`,
+                       boxplots$RespT2vsNonrespT2$Fibroblasts,
+                       boxplots$RespT2vsNonrespT2$Neutrophils,
+                       ncol = 3, nrow = 1, labels = c("d", "e", "f"),
+                       font.label = list(size = 8.5))
+ggarrange3 = ggarrange(boxplots$RespT1vsRespT2$`Endothelial cells`,
+                       boxplots$NonrespT1vsNonrespT2$`Endothelial cells`,
+                       p9,
+                       ncol = 3, nrow = 1, labels = c("g", "h", "Legend"),
+                       font.label = list(size = 8.5))
+tiff("Signatures/MCPcounter/MCPcounter_results.tiff", width = 3500, height = 4800,
+     res = 700, compression = "lzw")
+ggarrange(ggarrange1, ggarrange2, ggarrange3,
+          ncol = 1, nrow = 3, labels = NULL)
+dev.off()
 
 # MSigDB Oncogenic Collection Enrichment #####
 library(msigdb)
