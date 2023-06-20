@@ -983,6 +983,166 @@ ggarrange(ggarrange1, ggarrange2, ggarrange3,
           ncol = 1, nrow = 3, labels = NULL)
 dev.off()
 
+# Danaher #####
+
+# List of Danaher gene symbols
+danaher_genes = read.xlsx("Signatures/Danaher.xlsx", sheet = 4) %>%
+  dplyr::rename(Gene.Symbol = Gene)
+dgea = read.xlsx("data/Output sets/Downstream/DGEA.xlsx")
+z_exprs_gs = z_exprs[dgea$EntrezGene.ID,]
+rownames(z_exprs_gs) = dgea$Gene.Symbol
+
+# Convert the matrix to a data frame for easier manipulation
+z_exprs_gs = as.data.frame(z_exprs_gs)
+
+# Create the output data frame with cell types and overlap sizes
+danaher_scores = as.data.frame(unique(danaher_genes$Cell.Type))
+danaher_scores$overlap_size = NA
+overlap_lists = list()
+colnames(danaher_scores) = c("Cell.Type", "overlap_size")
+
+for (i in 1:nrow(danaher_scores)) {
+  danaher_subset = danaher_genes[danaher_genes$Cell.Type == danaher_scores$Cell.Type[i], ]
+  gene_subset = danaher_subset$Gene.Symbol
+  
+  # Overlap of cell type signatures with our gene pool
+  danaher_scores$overlap_size[i] = length(intersect(rownames(z_exprs_gs), gene_subset))
+  overlap_lists[[i]] = intersect(rownames(z_exprs_gs), gene_subset)
+}
+names(overlap_lists) = danaher_scores$Cell.Type
+
+# Keeping only cell types with non-zero overlaps
+danaher_scores = danaher_scores[danaher_scores$overlap_size > 0, ]
+danaher_scores = as.data.frame(cbind(danaher_scores, matrix(NA, nrow(danaher_scores),
+                                                            ncol(z_exprs_gs))))
+colnames(danaher_scores)[3:ncol(danaher_scores)] = colnames(z_exprs_gs)
+
+# Estimate scores for each cell type
+for (i in 1:ncol(z_exprs_gs)) {
+  for (j in 1:nrow(danaher_scores)) {
+    z_exprs_gs_filt = z_exprs_gs[overlap_lists[[danaher_scores$Cell.Type[j]]], ]
+    means = colMeans(z_exprs_gs_filt, na.rm = TRUE)
+    danaher_scores[j, 3:ncol(danaher_scores)] = means
+  }
+}
+
+# Plotting preparations
+rownames(danaher_scores) = danaher_scores$Cell.Type
+Danaher_list_df = list()
+Danaher_list_df[["Full"]] = danaher_scores %>% dplyr::select(-Cell.Type, -overlap_size)
+# Found no markers for population(s): Neutrophils, NK CD56dim cells, NK cells, Th1 cells, Treg
+Danaher_list_df[["Responders"]] = Danaher_list_df[["Full"]][, colnames(Danaher_list_df[["Full"]]) %in% c(responders_T1, responders_T2)]
+Danaher_list_df[["Non_responders"]] = Danaher_list_df[["Full"]][, colnames(Danaher_list_df[["Full"]]) %in% c(non_responders_T1, non_responders_T2)]
+Danaher_list_df[["Responders_T1"]] = Danaher_list_df[["Full"]][, colnames(Danaher_list_df[["Full"]]) %in% responders_T1]
+Danaher_list_df[["Non_responders_T1"]] = Danaher_list_df[["Full"]][, colnames(Danaher_list_df[["Full"]]) %in% non_responders_T1]
+Danaher_list_df[["Responders_T2"]] = Danaher_list_df[["Full"]][, colnames(Danaher_list_df[["Full"]]) %in% responders_T2]
+Danaher_list_df[["Non_responders_T2"]] = Danaher_list_df[["Full"]][, colnames(Danaher_list_df[["Full"]]) %in% non_responders_T2]
+
+# Boxplots
+# Converting the Danaher dataframe into a long format
+Danaher_long <- lapply(Danaher_list_df, function(df) {
+  df$cell_type <- rownames(df)
+  df_long <- df %>%
+    tidyr::pivot_longer(-cell_type, names_to = "sample_id", values_to = "value")
+  return(df_long)
+})
+
+# Assign response and timepoint groups
+for (i in 1:length(Danaher_long)) {
+  Danaher_long[[i]]$Response <- factor(ifelse(Danaher_long[[i]]$sample_id %in% c(responders_T1, responders_T2),
+                                              "Responder", "Non_responder"))
+  Danaher_long[[i]]$Timepoint <- factor(ifelse(Danaher_long[[i]]$sample_id %in% c(responders_T1, non_responders_T1),
+                                               "T1", "T2"))
+}
+
+# Create boxplots in a loop
+boxplots2 = list(RespvsNonresp = list(), RespT1vsNonrespT1 = list(),
+                 RespT2vsNonrespT2 = list(), RespT1vsRespT2 = list(),
+                 NonrespT1vsNonrespT2 = list())
+box_datasets2 = list(Danaher_long[["Full"]], 
+                     rbind(Danaher_long[["Responders_T1"]], Danaher_long[["Non_responders_T1"]]),
+                     rbind(Danaher_long[["Responders_T2"]], Danaher_long[["Non_responders_T2"]]),
+                     rbind(Danaher_long[["Responders_T1"]], Danaher_long[["Responders_T2"]]),
+                     rbind(Danaher_long[["Non_responders_T1"]], Danaher_long[["Non_responders_T2"]]))
+x_variables2 = c("Response", "Response","Response", "Timepoint", "Timepoint")
+cell_types2 = sort(unique(Danaher_long[["Full"]]$cell_type))
+
+# Generate t-test results
+t_test_results2 = list()
+
+t_test_results2[["Resp.vs.Nonresp"]] = perform_t_tests_response(Danaher_long[["Full"]], 
+                                                                1:nrow(Danaher_long[["Full"]]))
+t_test_results2[["Resp.vs.Nonresp"]] = add_significance_labels(as.data.frame(t_test_results2[["Resp.vs.Nonresp"]]))
+
+t_test_results2[["RespT1.vs.Nonresp_T1"]] = perform_t_tests_response(Danaher_long[["Full"]], 
+                                                                     which(Danaher_long[["Full"]]$Timepoint == "T1"))
+t_test_results2[["RespT1.vs.Nonresp_T1"]] = add_significance_labels(as.data.frame(t_test_results2[["RespT1.vs.Nonresp_T1"]]))
+
+t_test_results2[["RespT2.vs.Nonresp_T2"]] = perform_t_tests_response(Danaher_long[["Full"]], 
+                                                                     which(Danaher_long[["Full"]]$Timepoint == "T2"))
+t_test_results2[["RespT2.vs.Nonresp_T2"]] = add_significance_labels(as.data.frame(t_test_results2[["RespT2.vs.Nonresp_T2"]]))
+
+t_test_results2[["RespT1.vs.RespT2"]] = perform_t_tests_timepoints(Danaher_long[["Responders"]], 
+                                                                   1:nrow(Danaher_long[["Responders"]]))
+t_test_results2[["RespT1.vs.RespT2"]] = add_significance_labels(as.data.frame(t_test_results2[["RespT1.vs.RespT2"]]))
+
+t_test_results2[["NonrespT1.vs.NonrespT2"]] = perform_t_tests_timepoints(Danaher_long[["Non_responders"]], 
+                                                                         1:nrow(Danaher_long[["Non_responders"]]))
+t_test_results2[["NonrespT1.vs.NonrespT2"]] = add_significance_labels(as.data.frame(t_test_results2[["NonrespT1.vs.NonrespT2"]]))
+
+combined_results2 = rbind(t_test_results2[[1]],
+                          t_test_results2[[2]],
+                          t_test_results2[[3]],
+                          t_test_results2[[4]],
+                          t_test_results2[[5]])
+
+for (i in 1:length(titles)) {
+  for (j in 1:nrow(Danaher_list_df[["Full"]])) {
+    box_dataset = box_datasets2[[i]] %>% dplyr::filter(cell_type == cell_types2[j])
+    sig_label = t_test_results2[[i]][["significance_label"]][t_test_results2[[i]]$cell_type == cell_types2[j]]
+    box_dataset$sig_label = ifelse(nrow(box_dataset) > 0, sig_label, NA)
+    boxplots2[[i]][[j]] = ggplot(data = box_dataset, 
+                                 aes(x = !!sym(x_variables2[i]), y = value, 
+                                     fill = !!sym(x_variables2[i]))) +
+      geom_boxplot(alpha = 0.8, outlier.shape = NA, width = 0.3) +
+      geom_text(aes(x = 1.5, y = max(value, na.rm = TRUE), 
+                    label = paste(as.character(sig_label))), 
+                size = 3, vjust = 1) +
+      scale_fill_manual(values = c("Responder" = "dodgerblue4", "Non_responder" = "deeppink4",
+                                   "T1" = "goldenrod2", "T2" = "purple4")) +
+      labs(title = NULL, #paste0(cell_types[j], ": ", titles[i])
+           x = NULL, y = cell_types2[j]) +
+      theme_classic() +
+      theme(panel.background = element_rect(fill = "white", 
+                                            colour = "white"),
+            panel.grid = element_blank(),
+            axis.line = element_line(),
+            axis.title.y = element_text(size = 7, face = "bold"),
+            axis.text.x = element_text(size = 5),
+            legend.position = "none")
+  }
+  names(boxplots2[[i]]) = cell_types2
+}
+rm(box_dataset)
+
+# Create and export ggarrange() objects
+library(ggpubr)
+
+# Create output directory
+dir.create("Signatures/Danaher")
+Danaher_full_plots = list()
+for (i in 1:length(titles)) {
+  Danaher_full_plots[[i]] = ggarrange(plotlist = boxplots2[[i]], ncol = 2, 
+                                      nrow = 4, labels = NULL)
+  print(Danaher_full_plots[[i]])
+  ggsave(filename = paste0("Danaher_", titles[i], ".tiff"),
+         path = "Signatures/Danaher", 
+         width = 3612, height = 6500, device = 'tiff', units = "px",
+         dpi = 700, compression = "lzw")
+  dev.off()
+}
+
+
 # MSigDB Oncogenic Collection Enrichment #####
 library(msigdb)
 library(ExperimentHub)
