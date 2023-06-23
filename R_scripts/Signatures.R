@@ -946,7 +946,7 @@ for (i in 1:length(titles)) {
   MCPcounter_full_plots[[i]] = ggarrange(plotlist = boxplots[[i]], ncol = 2, 
                                          nrow = 4, labels = NULL)
   print(MCPcounter_full_plots[[i]])
-  ggsave(filename = paste0("MCPcounter_", titles[i], ".tiff"),
+  ggsave(filename = paste0("MCPcounter_", titles2[i], ".tiff"),
          path = "Signatures/MCPcounter", 
          width = 3612, height = 6500, device = 'tiff', units = "px",
          dpi = 700, compression = "lzw")
@@ -1139,7 +1139,7 @@ for (i in 1:length(titles)) {
   Danaher_full_plots[[i]] = ggarrange(plotlist = boxplots2[[i]], ncol = 3, 
                                       nrow = 3, labels = NULL)
   print(Danaher_full_plots[[i]])
-  ggsave(filename = paste0("Danaher_", titles[i], ".tiff"),
+  ggsave(filename = paste0("Danaher_", titles2[i], ".tiff"),
          path = "Signatures/Danaher", 
          width = 3612, height = 6500, device = 'tiff', units = "px",
          dpi = 700, compression = "lzw")
