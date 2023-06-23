@@ -825,10 +825,16 @@ for (i in 1:length(MCP_long)) {
 
 # Titles for the boxplots
 titles = c("Responders vs. Non-responders",
-            "Responders_T1 vs. Non_responders_T1",
-            "Responders_T2 vs. Non_responders_T2",
-            "Responders_T1 vs. Responders_T2",
-            "Non_responders_T1 vs. Non_responders_T2")
+            "Responders T1 vs. Non-responders T1",
+            "Responders T2 vs. Non-responders T2",
+            "Responders T1 vs. Responders T2",
+            "Non_responders T1 vs. Non-responders T2")
+
+titles2 = c("Responders_vs_Non_responders",
+           "Responders_T1_vs_Non_responders_T1",
+           "Responders_T2_vs_Non_responders_T2",
+           "Responders_T1_vs_Responders_T2",
+           "Non_responders_T1_vs_Non_responders_T2")
 
 # Create boxplots in a loop
 boxplots = list(RespvsNonresp = list(), RespT1vsNonrespT1 = list(),
