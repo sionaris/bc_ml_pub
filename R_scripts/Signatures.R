@@ -931,6 +931,7 @@ rm(box_dataset)
 
 # Create and export ggarrange() objects
 library(ggpubr)
+library(ggtext)
 
 # Create output directory
 dir.create("Signatures/MCPcounter")
@@ -1125,15 +1126,12 @@ for (i in 1:length(titles)) {
 }
 rm(box_dataset)
 
-# Create and export ggarrange() objects
-library(ggpubr)
-
 # Create output directory
 dir.create("Signatures/Danaher")
 Danaher_full_plots = list()
 for (i in 1:length(titles)) {
-  Danaher_full_plots[[i]] = ggarrange(plotlist = boxplots2[[i]], ncol = 2, 
-                                      nrow = 4, labels = NULL)
+  Danaher_full_plots[[i]] = ggarrange(plotlist = boxplots2[[i]], ncol = 3, 
+                                      nrow = 3, labels = NULL)
   print(Danaher_full_plots[[i]])
   ggsave(filename = paste0("Danaher_", titles[i], ".tiff"),
          path = "Signatures/Danaher", 
@@ -1141,6 +1139,41 @@ for (i in 1:length(titles)) {
          dpi = 700, compression = "lzw")
   dev.off()
 }
+
+
+# Create a comprehensive plot of singificant and meaningful results
+# i.e. results that are different between the groups of response/timepoint
+# It is going to be a 2x1 grid of three 1x3 ggarrange() object (a 2x3 grid ultimately)
+# Plus: a horizontal legend underneath
+
+# A legend plot
+p10 = ggplot() +
+  geom_rect(aes(xmin = -1, xmax = 1, ymin = -0.5, ymax = 1), fill = NA) +
+  annotate("richtext", x = -0.5, y = 0, 
+           label = "<b>a, b, c, d:</b> Responders (T1 vs. T2), || <b>e, f:</b> Non-responders (T1 vs. T2)",
+           hjust = 0.2, vjust = 0.5, fill = NA, label.color = NA, label.size = 0, size = 3) +
+  theme_void() +
+  coord_cartesian(xlim = c(-1, 1), ylim = c(-0.5, 1))
+
+ggarrange1 = ggarrange(boxplots2$RespT1vsRespT2$CD45,
+                       boxplots2$RespT1vsRespT2$`Cytotoxic cells`,
+                       boxplots2$RespT1vsRespT2$Macrophages,
+                       ncol = 3, nrow = 1, labels = c("a", "b", "c"),
+                       font.label = list(size = 8.5))
+ggarrange2 = ggarrange(boxplots2$RespT1vsRespT2$`T-cells`,
+                       boxplots2$NonrespT1vsNonrespT2$`Exhausted CD8`,
+                       boxplots2$NonrespT1vsNonrespT2$Macrophages,
+                       ncol = 3, nrow = 1, labels = c("d", "e", "f"),
+                       font.label = list(size = 8.5))
+ggarrange3 = ggarrange(p10, labels = c("Legend"),
+                       font.label = list(size = 8.5), hjust = -5.5, vjust = 3)
+tiff("Signatures/Danaher/Danaher_results.tiff", width = 3500, height = 4800,
+     res = 700, compression = "lzw")
+ggarrange(ggarrange1, ggarrange2, ggarrange3,
+          ncol = 1, nrow = 3, labels = NULL, heights = c(3, 3, 1))
+dev.off()
+
+# Immunophenoscore #####
 
 
 # MSigDB Oncogenic Collection Enrichment #####
