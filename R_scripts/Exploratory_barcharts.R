@@ -2,6 +2,7 @@
 library(openxlsx)
 library(dplyr)
 library(ggplot2)
+library(ggpubr)
 
 # Load the required data #####
 
@@ -201,6 +202,7 @@ ggsave(filename = "Mammaprint_risk_barchart.tiff",
 dev.off()
 
 # Multiplots #####
+# Vertical multiplot
 ggarrange1 = ggarrange(sample_patient_barchart, labels = "A", ncol = 1,
                        font.label = list(size = 6, face = "bold"))
 ggarrange2 = ggarrange(treatment_barchart, response_barchart, nrow = 1, ncol = 2,
@@ -209,8 +211,24 @@ ggarrange3 = ggarrange(pam50_barchart, Mammaprint_risk_barchart, nrow = 1, ncol 
                        labels = c("D", "E"), font.label = list(size = 6, face = "bold"))
 ggarrange(ggarrange1, ggarrange2, ggarrange3,
           ncol = 1, nrow = 3, widths = c(1, 1, 1), heights = c(2, 1, 1))
-ggsave(filename = "Multiplot_barcharts.tiff",
+ggsave(filename = "Multiplot_barcharts_vertical.tiff",
        path = "data/Exploratory barcharts",
        width = 2120, height = 1920*2, device = 'tiff', units = "px",
+       dpi = 700, compression = "lzw")
+dev.off()
+
+# Horizontal multiplot
+hggarrange1 = ggarrange(sample_patient_barchart, labels = "A", ncol = 1,
+                       font.label = list(size = 6, face = "bold"))
+hggarrange2 = ggarrange(treatment_barchart, response_barchart, nrow = 1, ncol = 2,
+                       labels = c("B", "C"), font.label = list(size = 6, face = "bold"))
+hggarrange3 = ggarrange(pam50_barchart, Mammaprint_risk_barchart, nrow = 1, ncol = 2,
+                       labels = c("D", "E"), font.label = list(size = 6, face = "bold"))
+hggarrange_interm = ggarrange(hggarrange2, hggarrange3, ncol = 1, nrow = 2)
+ggarrange(hggarrange1, hggarrange_interm,
+          ncol = 2, nrow = 1)
+ggsave(filename = "Multiplot_barcharts_horizontal.tiff",
+       path = "data/Exploratory barcharts",
+       width = 2120*2, height = 1920, device = 'tiff', units = "px",
        dpi = 700, compression = "lzw")
 dev.off()
