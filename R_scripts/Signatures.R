@@ -1156,18 +1156,18 @@ for (i in 1:length(titles)) {
 p10 = ggplot() +
   geom_rect(aes(xmin = -1, xmax = 1, ymin = -0.5, ymax = 1), fill = NA) +
   annotate("richtext", x = -0.5, y = 0, 
-           label = "<b>a, b, c, d:</b> Responders (T1 vs. T2), || <b>e, f:</b> Non-responders (T1 vs. T2)",
+           label = "<b>a, b, c:</b> Responders (T1 vs. T2), || <b>d, e, f:</b> Non-responders (T1 vs. T2)",
            hjust = 0.2, vjust = 0.5, fill = NA, label.color = NA, label.size = 0, size = 3) +
   theme_void() +
   coord_cartesian(xlim = c(-1, 1), ylim = c(-0.5, 1))
 
 ggarrange1 = ggarrange(boxplots2$RespT1vsRespT2$CD45,
-                       boxplots2$RespT1vsRespT2$`Cytotoxic cells`,
+                       boxplots2$RespT1vsRespT2$`B-cells`,
                        boxplots2$RespT1vsRespT2$Macrophages,
                        ncol = 3, nrow = 1, labels = c("a", "b", "c"),
                        font.label = list(size = 8.5))
-ggarrange2 = ggarrange(boxplots2$RespT1vsRespT2$`T-cells`,
-                       boxplots2$NonrespT1vsNonrespT2$`Exhausted CD8`,
+ggarrange2 = ggarrange(boxplots2$NonrespT1vsNonrespT2$CD45,
+                       boxplots2$NonrespT1vsNonrespT2$`B-cells`,
                        boxplots2$NonrespT1vsNonrespT2$Macrophages,
                        ncol = 3, nrow = 1, labels = c("d", "e", "f"),
                        font.label = list(size = 8.5))
