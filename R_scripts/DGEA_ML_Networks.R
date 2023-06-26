@@ -1055,7 +1055,7 @@ barchart_resp = ggplot(plotdata, aes(fill=Response, x=`Consensus Subtype`)) +
   scale_y_continuous(limits = c(0,675), breaks = seq(0, 675, 100)) +
   scale_fill_response() +
   labs(y = "Number of samples") +
-  annotate("text", x = 1.5, y = 640, size = 1.8, 
+  annotate("text", x = 1.5, y = 640, size = 1.8,
            label = bquote(italic(X^2) == .(round(chifit_resp_x[[1]], 2))))+
   annotate("text", x = 1.5, y = 590, size = 1.8,
            parse = if (chifit_resp_p[[1]] < 10e-5) { TRUE } else { FALSE },
@@ -1065,7 +1065,7 @@ barchart_resp = ggplot(plotdata, aes(fill=Response, x=`Consensus Subtype`)) +
              bquote(italic(p) == .(round(chifit_resp_p[[1]], 2)))
            }) +
   geom_rect(aes(xmin = 1.1, xmax = 1.9, ymin = 555, ymax = 670),
-            fill = "transparent", color = "black", size = 0.4) +
+            fill = "transparent", color = "black", linewidth = 0.4) +
   theme(panel.background = element_rect(fill = "white", 
                                         colour = "white"),
         panel.grid = element_blank(),
@@ -1091,7 +1091,7 @@ barchart_treat = ggplot(plotdata, aes(fill=Treatment, x=`Consensus Subtype`)) +
              bquote(italic(p) == .(round(chifit_treat_p[[1]], 2)))
            }) +
   geom_rect(aes(xmin = 1.1, xmax = 1.9, ymin = 555, ymax = 670),
-            fill = "transparent", color = "black", size = 0.4) +
+            fill = "transparent", color = "black", linewidth = 0.4) +
   theme(panel.background = element_rect(fill = "white", 
                                         colour = "white"),
         panel.grid = element_blank(),
@@ -1117,7 +1117,7 @@ barchart_pam50 = ggplot(plotdata, aes(fill=pam50, x=`Consensus Subtype`)) +
              bquote(italic(p) == .(round(chifit_pam50_p[[1]], 2)))
            }) +
   geom_rect(aes(xmin = 1.1, xmax = 1.9, ymin = 555, ymax = 670),
-            fill = "transparent", color = "black", size = 0.4) +
+            fill = "transparent", color = "black", linewidth = 0.4) +
   theme(panel.background = element_rect(fill = "white", 
                                         colour = "white"),
         panel.grid = element_blank(),
@@ -1144,7 +1144,7 @@ barchart_scmod1 = ggplot(plotdata, aes(fill=scmod1, x=`Consensus Subtype`)) +
              bquote(italic(p) == .(round(chifit_scmod1_p[[1]], 2)))
            }) +
   geom_rect(aes(xmin = 1.1, xmax = 1.9, ymin = 555, ymax = 670),
-            fill = "transparent", color = "black", size = 0.4) +
+            fill = "transparent", color = "black", linewidth = 0.4) +
   theme(panel.background = element_rect(fill = "white", 
                                         colour = "white"),
         panel.grid = element_blank(),
@@ -1170,7 +1170,7 @@ barchart_rorS = ggplot(plotdata, aes(fill=`rorS risk`, x=`Consensus Subtype`)) +
              bquote(italic(p) == .(round(chifit_rorS_p[[1]], 2)))
            }) +
   geom_rect(aes(xmin = 1.1, xmax = 1.9, ymin = 555, ymax = 670),
-            fill = "transparent", color = "black", size = 0.4) +
+            fill = "transparent", color = "black", linewidth = 0.4) +
   theme(panel.background = element_rect(fill = "white", 
                                         colour = "white"),
         panel.grid = element_blank(),
@@ -1196,7 +1196,7 @@ barchart_mammaprint = ggplot(plotdata, aes(fill=`Mammaprint risk`, x=`Consensus 
              bquote(italic(p) == .(round(chifit_mammaprint_p[[1]], 2)))
            }) +
   geom_rect(aes(xmin = 1.1, xmax = 1.9, ymin = 555, ymax = 670),
-            fill = "transparent", color = "black", size = 0.4) +
+            fill = "transparent", color = "black", linewidth = 0.4) +
   theme(panel.background = element_rect(fill = "white", 
                                         colour = "white"),
         panel.grid = element_blank(),
@@ -1222,7 +1222,7 @@ barchart_ic10 = ggplot(plotdata, aes(fill=`iC10`, x=`Consensus Subtype`)) +
              bquote(italic(p) == .(round(chifit_IC10_p[[1]], 2)))
            }) +
   geom_rect(aes(xmin = 1.1, xmax = 1.9, ymin = 555, ymax = 670),
-            fill = "transparent", color = "black", size = 0.4) +
+            fill = "transparent", color = "black", linewidth = 0.4) +
   theme(panel.background = element_rect(fill = "white", 
                                         colour = "white"),
         panel.grid = element_blank(),
@@ -1243,12 +1243,12 @@ barchart_timepoint = ggplot(plotdata, aes(fill=Timepoint, x=`Consensus Subtype`)
   annotate("text", x = 1.5, y = 590, size = 1.8,
            parse = if (chifit_time_p[[1]] < 10e-5) { TRUE } else { FALSE },
            label = if (chifit_time_p[[1]] < 10e-5) {
-             "italic(p) < 10^-5"
+             'italic(p) < 10^-5'
            } else {
              bquote(italic(p) == .(round(chifit_time_p[[1]], 2)))
            }) +
   geom_rect(aes(xmin = 1.1, xmax = 1.9, ymin = 555, ymax = 670),
-            fill = "transparent", color = "black", size = 0.4) +
+            fill = "transparent", color = "black", linewidth = 0.4) +
   theme(panel.background = element_rect(fill = "white", 
                                         colour = "white"),
         panel.grid = element_blank(),
