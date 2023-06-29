@@ -945,7 +945,7 @@ rcsi = ggplot(as.data.frame(mock[["scores"]]), aes(x = mock$scores$K,
                     ymax = mock$scores$RCSI + mock$scores$RCSI_SE,
                     color = "deeppink3"), width = 0.2, size = 0.1)+
   geom_point(size = 0.05, color ="deeppink3")+
-  scale_x_continuous(limits = c(1.9, 10), breaks = seq(2, 10, 1))+
+  scale_x_continuous(limits = c(1.9, 10.1), breaks = seq(2, 10, 1))+
   scale_y_continuous(limits = c(0, 0.7), breaks = seq(0, 0.7, 0.1))+
   theme(plot.title = element_text(size = 5, face = "bold"),
         axis.title.x = element_text(size = 4, face = "bold"),
