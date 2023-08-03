@@ -953,7 +953,7 @@ for (i in 1:length(titles)) {
   dev.off()
 }
 
-# Create a comprehensive plot of singificant and meaningful results
+# Create a comprehensive plot of significant and meaningful results
 # i.e. results that are different between the groups of response/timepoint
 # It is going to be a 3x1 grid of three 1x3 ggarrange() object (a 3x3 grid ultimately)
 
@@ -1147,7 +1147,7 @@ for (i in 1:length(titles)) {
 }
 
 
-# Create a comprehensive plot of singificant and meaningful results
+# Create a comprehensive plot of significant and meaningful results
 # i.e. results that are different between the groups of response/timepoint
 # It is going to be a 2x1 grid of three 1x3 ggarrange() object (a 2x3 grid ultimately)
 # Plus: a horizontal legend underneath
