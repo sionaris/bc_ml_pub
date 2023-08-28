@@ -2968,8 +2968,8 @@ preds_test = predict(model, test_all, type = "prob")
 preds_extval = predict(model, ext_data, type = "prob")
 preds_extval_1 = predict(model, ext_data[1:39,], type = "prob") # GSE18728 - chemo
 preds_extval_2 = predict(model, ext_data[40:127,], type = "prob") # GSE119262 - chemo
-preds_extval_4 = predict(model, ext_data[128:282,], type = "prob") # GSE111563 - endo
-preds_extval_3 = predict(model, ext_data[283:344,], type = "prob") # XVC3 - chemo
+preds_extval_4 = predict(model, ext_data[128:282,], type = "prob") # XVC3 - chemo
+preds_extval_3 = predict(model, ext_data[283:344,], type = "prob") # GSE111563 - endo
 preds_train_HER2 = predict(model, Training[["All_together"]][Training[["All_together"]]$HER2==1,], type = "prob")
 preds_val_HER2 = predict(model, Validation[["All_together"]][Validation[["All_together"]]$HER2==1,], type = "prob")
 preds_test_HER2 = predict(model, test_all[test_all$HER2 == 1,], type = "prob")
